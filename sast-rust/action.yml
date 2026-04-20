@@ -34,6 +34,6 @@ runs:
       shell: bash
       run: |
         set +e
-        ${{ inputs.config_path != '' && format('cp {0} .', inputs.config_path) || '' }}
+        ${{ inputs.config_path != '' && format('mkdir -p .cargo && cp {0} .cargo/audit.toml', inputs.config_path) || '' }}
         cargo audit --file "${{ inputs.manifest_path }}" \
           2>&1 | tee /tmp/audit.txt
