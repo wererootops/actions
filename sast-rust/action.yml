@@ -10,6 +10,10 @@ inputs:
     description: "Fail on warnings in addition to vulnerabilities"
     required: false
     default: "false"
+  config_path:
+    description: "Path to audit.toml config file"
+    required: false
+    default: ""
 
 outputs:
   cve_count:
@@ -30,7 +34,9 @@ runs:
       shell: bash
       run: |
         set +e
-        cargo audit --file "${{ inputs.manifest_path }}" 2>&1 | tee /tmp/audit.txt
+        cargo audit --file "${{ inputs.manifest_path }}" \
+          ${{ inputs.config_path != '' && format('--config {0}', inputs.config_path) || '' }} \
+          2>&1 | tee /tmp/audit.txt
         EXIT_CODE=$?
         set -e
         CVE_COUNT=$(grep -c "vulnerability found" /tmp/audit.txt || true)
