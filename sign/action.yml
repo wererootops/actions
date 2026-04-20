@@ -1,0 +1,39 @@
+name: "Sign"
+description: "Sign a binary with cosign keyless (Sigstore OIDC)"
+
+inputs:
+  path:
+    description: "Path to the file to sign"
+    required: true
+  bundle_output:
+    description: "Path to write the cosign bundle"
+    required: false
+    default: "cosign.bundle"
+  cosign_version:
+    description: "cosign version to install"
+    required: true
+  cosign_sha256:
+    description: "Expected SHA256 of the cosign binary"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Install and verify cosign"
+      shell: bash
+      run: |
+        curl -fsSL \
+          "https://github.com/sigstore/cosign/releases/download/${{ inputs.cosign_version }}/cosign-linux-amd64" \
+          -o /usr/local/bin/cosign
+        echo "${{ inputs.cosign_sha256 }}  /usr/local/bin/cosign" | sha256sum -c
+        chmod +x /usr/local/bin/cosign
+        echo "time=$(date -u +%Y-%m-%dT%H:%M:%SZ) level=info event=cosign_installed version=${{ inputs.cosign_version }}"
+
+    - name: "Sign binary"
+      shell: bash
+      run: |
+        cosign sign-blob \
+          --yes \
+          --bundle "${{ inputs.bundle_output }}" \
+          "${{ inputs.path }}"
+        echo "time=$(date -u +%Y-%m-%dT%H:%M:%SZ) level=info event=signed path=${{ inputs.path }} bundle=${{ inputs.bundle_output }}"
