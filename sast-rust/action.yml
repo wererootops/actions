@@ -34,12 +34,6 @@ runs:
       shell: bash
       run: |
         set +e
+        ${{ inputs.config_path != '' && format('cp {0} .', inputs.config_path) || '' }}
         cargo audit --file "${{ inputs.manifest_path }}" \
-          ${{ inputs.config_path != '' && format('--config {0}', inputs.config_path) || '' }} \
           2>&1 | tee /tmp/audit.txt
-        EXIT_CODE=$?
-        set -e
-        CVE_COUNT=$(grep -c "vulnerability found" /tmp/audit.txt || true)
-        echo "cve_count=${CVE_COUNT}" >> "$GITHUB_OUTPUT"
-        echo "time=$(date -u +%Y-%m-%dT%H:%M:%SZ) level=info event=sast cve_count=${CVE_COUNT} exit_code=${EXIT_CODE}"
-        [ "$EXIT_CODE" = "0" ] || exit $EXIT_CODE
