@@ -3,9 +3,9 @@ description: "Static analysis with cargo audit (RustSec advisory database)"
 
 inputs:
   manifest_path:
-    description: "Path to Cargo.toml"
+    description: "Path to Cargo.lock"
     required: false
-    default: "Cargo.toml"
+    default: "Cargo.lock"
   deny_warnings:
     description: "Fail on warnings in addition to vulnerabilities"
     required: false
