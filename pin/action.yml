@@ -1,0 +1,39 @@
+name: "Pin"
+description: "Resolve a GitHub Action tag to its commit SHA for pinning"
+
+inputs:
+  repo:
+    description: "Action repository (e.g. actions/checkout)"
+    required: true
+  tag:
+    description: "Tag to resolve. Leave empty to use latest release."
+    required: false
+    default: ""
+
+outputs:
+  sha:
+    description: "Commit SHA for the given tag"
+    value: ${{ steps.resolve.outputs.sha }}
+  pin:
+    description: "Ready-to-use pinned reference (repo@sha  # tag)"
+    value: ${{ steps.resolve.outputs.pin }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Resolve tag to SHA"
+      id: resolve
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        if [ -z "${{ inputs.tag }}" ]; then
+          TAG=$(gh api /repos/${{ inputs.repo }}/releases/latest --jq '.tag_name')
+        else
+          TAG="${{ inputs.tag }}"
+        fi
+        SHA=$(gh api /repos/${{ inputs.repo }}/git/refs/tags/${TAG} \
+          --jq '.object.sha')
+        echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
+        echo "pin=${{ inputs.repo }}@${SHA}  # ${TAG}" >> "$GITHUB_OUTPUT"
+        echo "time=$(date -u +%Y-%m-%dT%H:%M:%SZ) level=info event=pin repo=${{ inputs.repo }} tag=${TAG} sha=${SHA}"
