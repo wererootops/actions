@@ -1,0 +1,28 @@
+name: "Checksum"
+description: "Generate SHA256 checksum for a file"
+
+inputs:
+  path:
+    description: "Path to the file to checksum"
+    required: true
+  output_file:
+    description: "Path to write the checksum file"
+    required: false
+    default: "sha256.txt"
+
+outputs:
+  sha256:
+    description: "SHA256 hash of the file"
+    value: ${{ steps.checksum.outputs.sha256 }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Generate checksum"
+      id: checksum
+      shell: bash
+      run: |
+        SHA256=$(sha256sum "${{ inputs.path }}" | awk '{print $1}')
+        echo "$SHA256" > "${{ inputs.output_file }}"
+        echo "sha256=${SHA256}" >> "$GITHUB_OUTPUT"
+        echo "time=$(date -u +%Y-%m-%dT%H:%M:%SZ) level=info event=checksum path=${{ inputs.path }} sha256=${SHA256}"

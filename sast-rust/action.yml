@@ -1,0 +1,44 @@
+name: "SAST"
+description: "Static analysis with cargo audit (RustSec advisory database)"
+
+inputs:
+  manifest_path:
+    description: "Path to Cargo.lock"
+    required: false
+    default: "Cargo.lock"
+  deny_warnings:
+    description: "Fail on warnings in addition to vulnerabilities"
+    required: false
+    default: "false"
+  output_file:
+    description: "Path to write the SAST report"
+    required: false
+    default: "sast.json"
+
+outputs:
+  cve_count:
+    description: "Number of vulnerabilities found"
+    value: ${{ steps.audit.outputs.cve_count }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Install cargo-audit"
+      shell: bash
+      run: |
+        cargo install cargo-audit --quiet
+        echo "time=$(date -u +%Y-%m-%dT%H:%M:%SZ) level=info event=cargo_audit_installed version=$(cargo audit --version)"
+
+    - name: "Run audit"
+      id: audit
+      shell: bash
+      run: |
+        set +e
+        cargo audit --file "${{ inputs.manifest_path }}" \
+          2>&1 | tee "${{ inputs.output_file }}"
+        EXIT_CODE=$?
+        set -e
+        CVE_COUNT=$(grep -c "vulnerability found" "${{ inputs.output_file }}" || true)
+        echo "cve_count=${CVE_COUNT}" >> "$GITHUB_OUTPUT"
+        echo "time=$(date -u +%Y-%m-%dT%H:%M:%SZ) level=info event=sast cve_count=${CVE_COUNT} exit_code=${EXIT_CODE}"
+        [ "$EXIT_CODE" = "0" ] || exit $EXIT_CODE

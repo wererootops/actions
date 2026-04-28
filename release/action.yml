@@ -1,0 +1,90 @@
+name: "Release"
+description: "Package a signed, verified artifact for handoff to CD"
+
+inputs:
+  binary_path:
+    description: "Path to the binary"
+    required: true
+  binary_name:
+    description: "Binary name (e.g. vaultwarden)"
+    required: true
+  version:
+    description: "Version (e.g. 1.35.7)"
+    required: true
+  arch:
+    description: "Architecture (e.g. x86_64)"
+    required: false
+    default: "x86_64"
+  os:
+    description: "OS (e.g. linux)"
+    required: false
+    default: "linux"
+  variant:
+    description: "Build variant (e.g. static)"
+    required: false
+    default: "static"
+  sha256_path:
+    description: "Path to sha256 file"
+    required: true
+  sbom_path:
+    description: "Path to SBOM file"
+    required: true
+  cosign_bundle_path:
+    description: "Path to cosign bundle"
+    required: true
+  sast_report_path:
+    description: "Path to SAST report"
+    required: true
+  output_dir:
+    description: "Output directory"
+    required: false
+    default: "release"
+
+outputs:
+  release_dir:
+    description: "Path to the release directory"
+    value: ${{ steps.package.outputs.release_dir }}
+  manifest_path:
+    description: "Path to the manifest file"
+    value: ${{ steps.package.outputs.manifest_path }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Package release candidate"
+      id: package
+      shell: bash
+      run: |
+        BASE="${{ inputs.binary_name }}-${{ inputs.version }}-${{ inputs.arch }}-${{ inputs.os }}-${{ inputs.variant }}"
+        OUT="${{ inputs.output_dir }}"
+        mkdir -p "$OUT"
+
+        cp "${{ inputs.binary_path }}"        "$OUT/${BASE}"
+        cp "${{ inputs.sha256_path }}"        "$OUT/${BASE}.sha256"
+        cp "${{ inputs.sbom_path }}"          "$OUT/${BASE}.sbom.cdx.json"
+        cp "${{ inputs.cosign_bundle_path }}" "$OUT/${BASE}.cosign.bundle"
+        cp "${{ inputs.sast_report_path }}"   "$OUT/${BASE}.sast.json"
+
+        # Generate manifest
+        MANIFEST="$OUT/${BASE}.manifest.json"
+        cat > "$MANIFEST" << EOF
+        {
+          "name": "${{ inputs.binary_name }}",
+          "version": "${{ inputs.version }}",
+          "arch": "${{ inputs.arch }}",
+          "os": "${{ inputs.os }}",
+          "variant": "${{ inputs.variant }}",
+          "built_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+          "files": {
+            "binary":       "${BASE}",
+            "sha256":       "${BASE}.sha256",
+            "sbom":         "${BASE}.sbom.cdx.json",
+            "cosign_bundle":"${BASE}.cosign.bundle",
+            "sast":         "${BASE}.sast.json"
+          }
+        }
+        EOF
+
+        echo "release_dir=${OUT}" >> "$GITHUB_OUTPUT"
+        echo "manifest_path=${MANIFEST}" >> "$GITHUB_OUTPUT"
+        echo "time=$(date -u +%Y-%m-%dT%H:%M:%SZ) level=info event=release_packaged base=${BASE} dir=${OUT}"
